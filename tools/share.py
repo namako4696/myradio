@@ -201,6 +201,10 @@ def main():
     if pack and os.path.exists(os.path.join(root, pack)):
         cj = json.load(open(os.path.join(root, pack)))
         if cj.get("base"): char = Image.open(os.path.join(root, os.path.dirname(pack), cj["base"])).convert("RGBA")
+        elif cj.get("type") == "poses":   # a pose pack has no base: the share card shows her default pose
+            poses = cj.get("poses", {})
+            f = poses.get(cj.get("default")) or next(iter(poses.values()), None)
+            if f: char = Image.open(os.path.join(root, os.path.dirname(pack), f)).convert("RGBA")
     os.makedirs(os.path.join(root, "share"), exist_ok=True)
     made, newest = 0, None
     for entry in json.load(open(os.path.join(root, station.get("episodes", "episodes.json")))):   # newest first

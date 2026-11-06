@@ -80,6 +80,23 @@
 - `depth`（任意）：奥行きの白黒画像（手前ほど白い）。顔の向き、呼吸、後ろ髪の揺れに使う。キャラの中での「奥から何番目か」の割合（いちばん奥 0、いちばん手前 1、背景 0）で入れておくと、どの深度推定モデルで作っても同じように動く
 - `background`：キャラの後ろの色
 
+### `"type": "poses"`（全身ポーズの静止画を切り替える）
+
+目・口のないキャラ用。口パク・まばたきはせず、ポーズそのもので感情を表す。
+
+```json
+{"format": "myradio/character-1", "type": "poses", "background": "#161a26", "size": [624, 464],
+ "default": "sit",
+ "poses": {"wave": "poses/wave.png", "sit": "poses/sit.png", "bow": "poses/bow.png"},
+ "scenes": {"idle": "sit", "greeting": "wave", "talking": "sit", "happy": "cheer", "emphasis": "victory", "ending": "bow"},
+ "labels": {"wave": "あいさつ", "sit": "通常", "bow": "お辞儀"}}
+```
+
+- `poses`：ポーズ名 → 背景が透明な全身画像（`character/` からの相対パス）
+- `scenes`：場面 → ポーズ名。プレーヤーは、オープニングで `greeting`、ニュース中は話している間 `talking`（ときどき `emphasis`）、エンディングで `ending`、それ以外は `idle` を出す
+- `labels`（任意）：カメラ左下に出るポーズ切り替えボタンの表示名。手動で選んだポーズは約8秒そのままになり、そのあと番組の進行に戻る
+- `background`：カメラの後ろの色。共有カード（`tools/share.py`）は `default` のポーズをキャラ画像として使う
+
 ### `"type": "clips"`（短い映像をつなぐ）
 
 ```json

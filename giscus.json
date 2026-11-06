@@ -1,9 +1,1 @@
-{
- "origins": [
-  "https://monoradio102.github.io"
- ],
- "originsRegex": [
-  "http://localhost:[0-9]+"
- ],
- "defaultCommentOrder": "oldest"
-}
+{"defaultCommentOrder":"oldest","origins":["https://namako4696.github.io"],"originsRegex":["http://localhost:[0-9]+"]}

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ものラジオ</title>
+<title>あつたまちゃんのおはらじお</title>
 <link rel="icon" id="favicon" href="data:,">
 <script>if (/[?&]embed\b/.test(location.search)) document.documentElement.classList.add("embed")</script>
 <style>
@@ -218,6 +218,16 @@ main{max-width:1280px;margin:0 auto;padding:16px}
 #cam video.on{opacity:1}
 #cam canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:6px}
 #cam [hidden]{display:none}
+/* her as poses: a whole-body still on the camera's background, breathing a little; the pose buttons under her */
+#cam #pose{object-fit:contain;animation:poseBreath 3.4s ease-in-out infinite alternate}
+@keyframes poseBreath{from{transform:translateY(.4%)}to{transform:translateY(-.8%)}}
+#poseBar{position:absolute;left:12px;bottom:10px;z-index:3;display:flex;gap:6px;flex-wrap:wrap;max-width:78%}
+#poseBar[hidden]{display:none}
+#poseBar button{border:1px solid var(--line);border-radius:999px;background:rgba(10,12,18,.72);color:var(--text);font:600 19px var(--jp);padding:6px 14px;cursor:pointer}
+#poseBar button:hover{border-color:var(--yellow);color:var(--yellow)}
+#poseBar button.on{background:var(--yellow);border-color:var(--yellow);color:var(--ink)}
+.has-card #poseBar{max-width:calc(100% - 24px)}
+.has-card #poseBar button{font-size:15px;padding:4px 10px}
 #cam .corner{position:absolute;width:44px;height:44px;border:4px solid var(--yellow)}
 #cam .c1{left:-14px;top:-14px;border-right:0;border-bottom:0}#cam .c2{right:-14px;top:-14px;border-left:0;border-bottom:0}
 #cam .c3{left:-14px;bottom:-14px;border-right:0;border-top:0}#cam .c4{right:-14px;bottom:-14px;border-left:0;border-top:0}
@@ -431,7 +441,7 @@ html.phone #share span{display:none}
 <main>
   <div id="frame">
     <div id="stage">
-      <div class="brand"><i class="logo" id="slogo" hidden></i><b id="sname">ものラジオ</b><div class="epsel" id="epsel"><button class="epnav" id="epPrev" aria-label="前の回" title="前の回" hidden></button><button id="sdate" aria-haspopup="listbox" aria-expanded="false" aria-controls="eplist"><span></span><i></i></button><button class="epnav" id="epNext" aria-label="次の回" title="次の回" hidden></button><div id="eplist" role="listbox" aria-label="放送日"></div></div><div class="langsw" id="langsw" hidden></div></div>
+      <div class="brand"><i class="logo" id="slogo" hidden></i><b id="sname">あつたまちゃんのおはらじお</b><div class="epsel" id="epsel"><button class="epnav" id="epPrev" aria-label="前の回" title="前の回" hidden></button><button id="sdate" aria-haspopup="listbox" aria-expanded="false" aria-controls="eplist"><span></span><i></i></button><button class="epnav" id="epNext" aria-label="次の回" title="次の回" hidden></button><div id="eplist" role="listbox" aria-label="放送日"></div></div><div class="langsw" id="langsw" hidden></div></div>
       <div class="onair"><i></i>ON AIR</div>
       <nav id="toc" aria-label="目次"></nav>
       <div id="panel"></div>
@@ -439,12 +449,14 @@ html.phone #share span{display:none}
       <div id="wx" hidden><div class="body"></div><div id="wxlist" role="listbox"></div></div>
       <div id="cam">
         <img id="idle" alt="">
+        <img id="pose" alt="" hidden>
         <canvas id="charcv" hidden></canvas>
         <video id="va" muted playsinline preload="auto"></video>
         <video id="vb" muted playsinline preload="auto"></video>
         <div class="rec"><i></i>LIVE</div>
         <div class="corner c1"></div><div class="corner c2"></div><div class="corner c3"></div><div class="corner c4"></div>
         <div class="credit" id="camCredit" hidden></div>
+        <div id="poseBar" hidden></div>
       </div>
       <div id="cap"><span></span></div>
       <div id="bar"><b></b></div>
@@ -549,6 +561,8 @@ new ResizeObserver(([e]) => { $("stage").style.transform = `scale(${e.contentRec
 //   "clips"   short talking clips that start and end in the still's pose (idle), so they chain without a jump
 //   "sprites" a base image with small mouth / eye images laid on it, drawn through WebGL: a depth map turns the head a
 //             little toward the pointer, the body breathes and the back hair sways (a pseudo Live2D)
+//   "poses"   whole-body stills with no eyes and no mouth: the pose itself carries the feeling, switched by the
+//             part of the show (and by the buttons on her camera). No blinking, no lip-sync
 let CHAR = { type: "clips", idle: "idle.webp", talk: [], background: "#161a26" };
 const charUrl = f => `character/${f}`;
 const vids = [$("va"), $("vb")];
@@ -559,6 +573,7 @@ async function loadCharacter() {
   try { CHAR = { ...CHAR, ...(await (await fetch("character/character.json", { cache: "no-store" })).json()) }; } catch {}
   document.documentElement.style.setProperty("--cam", CHAR.background);
   if (CHAR.type === "sprites") { $("idle").hidden = true; vids.forEach(v => v.hidden = true); await initSprites(); }
+  else if (CHAR.type === "poses") { $("idle").hidden = true; vids.forEach(v => v.hidden = true); initPoses(); }
   else { $("idle").src = charUrl(CHAR.idle); vids.forEach(prime); }
 }
 vids.forEach((v, i) => v.addEventListener("ended", () => {
@@ -696,6 +711,42 @@ function spriteFrame(t, now, speaking, kind) {
   } else {
     const c = $("charcv").getContext("2d"); c.fillStyle = CHAR.background; c.fillRect(0, 0, SP.comp.width, SP.comp.height); c.drawImage(SP.comp, 0, 0);
   }
+}
+
+// ---------- her as poses ----------
+// she has no eyes and no mouth, so she does not blink or lip-sync: the pose itself carries the feeling.
+// the pose follows the part of the show (a greeting in the opening, a talking pose with an occasional
+// emphasis while the news runs, a bow at the end); the buttons on her camera switch it by hand, and a
+// hand-picked pose then stays for a while before the show takes over again
+const POSE = { cur: "", manualAt: -1e9 };
+function poseOf(name) {
+  const poses = CHAR.poses || {}, scenes = CHAR.scenes || CHAR.scene_mapping || {};
+  const p = scenes[name] || name;
+  return poses[p] ? p : (poses[CHAR.default] ? CHAR.default : Object.keys(poses)[0]);
+}
+function setPose(name, manual) {
+  if (manual) POSE.manualAt = performance.now();
+  const p = poseOf(name); if (!p || p === POSE.cur) return;
+  POSE.cur = p;
+  $("pose").src = charUrl((CHAR.poses || {})[p]);
+  document.querySelectorAll("#poseBar button").forEach(b => b.classList.toggle("on", b.dataset.pose === p));
+}
+function initPoses() {
+  $("pose").hidden = false;
+  for (const f of Object.values(CHAR.poses || {})) { const i = new Image(); i.src = charUrl(f); }   // preload: no flash on a switch
+  const labels = CHAR.labels || {}, bar = $("poseBar");
+  bar.innerHTML = Object.keys(CHAR.poses || {}).map(k => `<button data-pose="${esc(k)}">${esc(labels[k] || k)}</button>`).join("");
+  bar.hidden = !bar.children.length;
+  bar.addEventListener("click", e => { const b = e.target.closest("[data-pose]"); if (b) setPose(b.dataset.pose, true); });
+  setPose(CHAR.default || "idle");
+}
+function poseFrame(now, speaking, kind) {
+  if (now - POSE.manualAt < 8000) return;   // a hand-picked pose stays for 8 seconds
+  let want = "idle";
+  if (kind === "opening") want = "greeting";
+  else if (kind === "closing") want = "ending";
+  else if (kind === "news") want = speaking ? (Math.floor(now / 5000) % 3 === 2 ? "emphasis" : "talking") : "idle";
+  setPose(want);
 }
 
 // ---------- slides ----------
@@ -843,6 +894,7 @@ $("card").addEventListener("click", () => audio.pause());
 function tick(now) {
   const speakingAt = t => !audio.paused && speech.some(([a, b]) => t >= a && t < b);
   if (CHAR.type === "sprites") spriteFrame(audio.currentTime, now, ep && speakingAt(audio.currentTime), ep?.segments[curPart]?.kind);
+  if (CHAR.type === "poses") poseFrame(now, ep && speakingAt(audio.currentTime), ep?.segments[curPart]?.kind);
   if (ep) {
     const t = audio.currentTime, dur = ep.seconds;
     const part = Math.max(0, ep.segments.findIndex(s => t >= s.start && t < s.end));
@@ -850,7 +902,7 @@ function tick(now) {
     const line = ep.lines_timed.find(l => t >= l.start && t < l.end + 0.3);
     const cap = line ? line.show : "";
     if ($("cap").firstChild.textContent !== cap) { $("cap").firstChild.textContent = cap; $("now").textContent = cap; }
-    if (CHAR.type !== "sprites") setTalking(speakingAt(t));
+    if (CHAR.type === "clips") setTalking(speakingAt(t));
     $("bar").firstChild.style.width = (t / dur * 100) + "%";
     if (!seeking) $("seek").value = Math.round(t / dur * 1000);
     $("time").textContent = `${mmss(t)} / ${mmss(dur)}`;
@@ -948,7 +1000,7 @@ function voiceLevel() {
 }
 
 // ---------- sound on / off and volume (remembered in this browser) ----------
-const SOUND_KEY = "monoradio.sound";
+const SOUND_KEY = "oharajio.sound";
 const SOUND = { muted: false, volume: 1 };
 function applySound() {
   if (VOICE.gain) VOICE.gain.gain.value = SOUND.muted ? 0 : SOUND.volume;
@@ -1084,7 +1136,7 @@ function talkShow() {
 $("talkBox").addEventListener("toggle", talkShow);
 // the station describes itself in station.json (name, what it broadcasts, logo, credits): this page and, later,
 // a channel guide read it
-let STATION = { name: "ものラジオ", credits: [] };
+let STATION = { name: "あつたまちゃんのおはらじお", credits: [] };
 // a station field in the current language: station.json may give "i18n": {"en": {"name", "tagline", "credits", ...}}
 const st = k => STATION.i18n?.[LANG]?.[k] ?? STATION[k];
 function setLang(l) {
@@ -1246,6 +1298,7 @@ async function loadStation() {
 async function init() {
   // the show plays even if the character cannot be drawn
   await Promise.all([loadStation(), loadCharacter().catch(e => console.warn("character", e))]);
+  setLang(STATION.language || "ja");   // the station's own name and credits, even while there are no episodes yet
   wxLoad();
   let r = 1; try { r = +localStorage.getItem("rate") || 1; } catch {}
   setRate(RATES.includes(r) ? r : 1);
